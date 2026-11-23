@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Code Studio</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+  :root {
+    --ink: #17162b;
+    --muted: #77768e;
+    --line: #e8e7f2;
+    --panel: rgba(255,255,255,.84);
+    --primary: #6c4cff;
+    --primary-dark: #5031d6;
+    --primary-soft: #eeeaff;
+    --cyan: #34c8f5;
+    --shadow: 0 28px 80px rgba(60,48,135,.16);
+  }
+  * { box-sizing: border-box; }
+  html { min-width: 320px; background: #eeefff; }
+  body {
+    font-family: 'DM Sans', sans-serif; color: var(--ink); min-height: 100vh; margin: 0;
+    padding: 28px; overflow-x: hidden;
+    background:
+      radial-gradient(circle at 10% 10%, rgba(255,255,255,.95) 0 10%, transparent 32%),
+      radial-gradient(circle at 91% 8%, rgba(166,222,255,.55), transparent 27%),
+      radial-gradient(circle at 82% 92%, rgba(160,126,255,.27), transparent 32%),
+      linear-gradient(135deg, #f4f4ff 0%, #ecf4ff 48%, #f1edff 100%);
+  }
+  body::before, body::after {
+    content: ''; position: fixed; pointer-events: none; filter: blur(2px); opacity: .7; z-index: 0;
+  }
+  body::before { width: 360px; height: 360px; left: -140px; bottom: -150px; border-radius: 48% 52% 70% 30%; background: linear-gradient(135deg,#dccfff,#bfeaff); transform: rotate(22deg); }
+  body::after { width: 290px; height: 290px; right: -100px; top: 24%; border-radius: 63% 37% 44% 56%; border: 64px solid rgba(255,255,255,.42); transform: rotate(-18deg); }
+  button, input, select, textarea { font: inherit; }
+  button, .file-btn { -webkit-tap-highlight-color: transparent; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, .file-btn:focus-visible { outline: 3px solid rgba(108,76,255,.2); outline-offset: 2px; }
+
+  .app {
+    position: relative; z-index: 1; max-width: 1240px; min-height: calc(100vh - 56px); margin: 0 auto;
+    background: rgba(255,255,255,.74); border: 1px solid rgba(255,255,255,.92); border-radius: 28px;
+    box-shadow: var(--shadow), inset 0 1px 0 #fff; overflow: hidden;
+    display: grid; grid-template-columns: minmax(340px, .87fr) minmax(500px, 1.13fr);
+    backdrop-filter: blur(24px);
+  }
+  .left {
+    position: sticky; top: 0; align-self: start; min-height: calc(100vh - 56px); padding: 34px;
+    display: flex; flex-direction: column; text-align: center; overflow: hidden;
+    background:
+      radial-gradient(circle at 70% 30%, rgba(51,203,249,.26), transparent 30%),
+      radial-gradient(circle at 20% 82%, rgba(129,80,255,.28), transparent 32%),
+      linear-gradient(145deg, #15152b 0%, #10101f 63%, #1b1640 100%);
+  }
+  .left::before { content:''; position:absolute; inset: 17% -28% auto 20%; height:360px; border: 1px solid rgba(74,211,255,.35); border-radius:50%; transform:rotate(-20deg); box-shadow: 0 0 34px rgba(69,198,255,.24), inset 0 0 34px rgba(99,72,255,.18); pointer-events:none; }
+  .left::after { content:''; position:absolute; width:280px; height:280px; left:-110px; bottom:-150px; border-radius:40% 60% 54% 46%; background:linear-gradient(135deg,rgba(104,64,255,.72),rgba(45,199,255,.12)); filter:blur(8px); pointer-events:none; }
+  .left > * { position: relative; z-index: 1; }
+  h1 { font-family:'Manrope',sans-serif; color:#fff; font-size:20px; line-height:1.2; margin:0 auto 28px 0; display:flex; align-items:center; gap:10px; letter-spacing:-.02em; }
+  h1::before { content:''; width:34px; height:34px; border-radius:10px; background: linear-gradient(135deg,#8a60ff,#4d27dc); box-shadow:0 8px 22px rgba(111,67,255,.38); background-image: linear-gradient(90deg,transparent 42%,rgba(255,255,255,.92) 42% 58%,transparent 58%),linear-gradient(transparent 42%,rgba(255,255,255,.92) 42% 58%,transparent 58%),linear-gradient(135deg,#8a60ff,#4d27dc); background-size:12px 12px,12px 12px,100% 100%; background-position:7px 7px,15px 15px,0 0; background-repeat:no-repeat; }
+  .pv-tools { order: 2; display:flex; gap:8px; justify-content:center; margin:18px 0 0; }
+  .pv-tools button { width:38px; height:34px; padding:0; font-size:0; color:#dcd9ff; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.12); border-radius:10px; transition:.2s; }
+  .pv-tools button::before { content:''; display:block; width:14px; height:14px; margin:auto; border-radius:4px; border:2px solid currentColor; }
+  .pv-tools button:nth-child(1)::before { background:repeating-conic-gradient(#777 0 25%,#eee 0 50%) 0/7px 7px; }
+  .pv-tools button:nth-child(2)::before { background:#fff; }
+  .pv-tools button:nth-child(3)::before { background:#17162b; }
+  .pv-tools button:hover, .pv-tools button.sel { color:#fff; border-color:#866fff; background:rgba(108,76,255,.3); transform:translateY(-1px); }
+  .qr-wrap { order:1; position:relative; width:min(88%,360px); aspect-ratio:1; margin:auto; padding:26px; display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:36px; background:#fff; border:1px solid rgba(255,255,255,.8); box-shadow:0 28px 60px rgba(0,0,0,.28),0 0 0 12px rgba(255,255,255,.045),0 0 70px rgba(62,169,255,.28); }
+  .qr-wrap::after { content:''; position:absolute; inset:0; border-radius:inherit; box-shadow:inset 0 1px 0 rgba(255,255,255,.85); pointer-events:none; }
+  .qr-wrap img { width:100%; height:100%; display:none; object-fit:contain; }
+  .pv-checker { background-color:#fff; background-image:linear-gradient(45deg,#f1f1f5 25%,transparent 25%,transparent 75%,#f1f1f5 75%),linear-gradient(45deg,#f1f1f5 25%,transparent 25%,transparent 75%,#f1f1f5 75%); background-size:16px 16px; background-position:0 0,8px 8px; }
+  .pv-white { background:#fff; } .pv-dark { background:#191827; }
+  .placeholder { color:#918fa5; font-size:14px; padding:22px; line-height:1.5; }
+  .error { color:#ff9aab; font-size:13px; padding:16px; }
+  #info { order:3; margin:18px auto 0; min-height:38px; max-width:370px; font-size:12px; font-weight:600; line-height:1.45; }
+  .ok{color:#68e3a2}.mid{color:#ffc766}.bad{color:#ff8c9d}
+  .actions { order:4; display:grid; grid-template-columns:1fr 1fr auto; gap:8px; width:100%; max-width:410px; margin:14px auto 0; }
+  .left > .row { order:5; justify-content:center; color:#c1bfd1; }
+  .toast { order:6; min-height:18px; margin-top:8px; font-size:12px; color:#74e0a9; }
+  .hint { order:7; margin-top:auto; padding-top:22px; color:#7e7b97; font-size:10.5px; line-height:1.5; }
+
+  .right { position:relative; min-width:0; height:calc(100vh - 56px); overflow:auto; padding:38px 42px 54px; background:rgba(255,255,255,.8); scrollbar-width:thin; scrollbar-color:#d9d3ff transparent; }
+  .right::before { content:'Sesuaikan QR Anda'; display:block; font-family:'Manrope',sans-serif; font-size:26px; line-height:1.2; font-weight:800; letter-spacing:-.035em; margin-bottom:4px; color:#18172c; }
+  .right::after { content:'Setiap perubahan langsung tampil di preview.'; position:absolute; top:72px; left:42px; color:#8a879a; font-size:13px; }
+  .sec-title { display:flex; align-items:center; gap:10px; margin:30px 0 12px; color:#35324d; font-size:12px; font-weight:700; letter-spacing:.11em; text-transform:uppercase; }
+  .sec-title::after { content:''; flex:1; height:1px; background:var(--line); }
+  .sec-title:first-child { margin-top:54px; }
+  textarea { width:100%; min-height:84px; padding:16px 18px; color:#27253d; background:#f7f7fc; border:1px solid #e7e5ef; border-radius:15px; font-size:14px; resize:vertical; outline:none; transition:.2s; box-shadow:inset 0 1px 0 #fff; }
+  textarea:hover { border-color:#d5d0ee; } textarea:focus { border-color:#8066f1; background:#fff; box-shadow:0 0 0 4px rgba(108,76,255,.08); }
+  .tiles { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .tile { min-width:0; padding:13px 8px 10px; cursor:pointer; color:#6d6981; background:#f7f7fb; border:1px solid #eceaf2; border-radius:14px; transition:.18s ease; }
+  .tile:hover { background:#fff; border-color:#cbc2fa; transform:translateY(-2px); box-shadow:0 8px 22px rgba(72,54,139,.08); }
+  .tile.sel { color:#5940d5; background:#f0edff; border-color:#785df0; box-shadow:inset 0 0 0 1px #785df0; }
+  .tile svg { width:42px; height:42px; display:block; margin:0 auto 7px; }
+  .tile span { display:block; overflow:hidden; font-size:11px; line-height:1.25; text-overflow:ellipsis; }
+  .row { display:flex; align-items:center; gap:10px; margin:11px 0; color:#666377; font-size:12.5px; }
+  .row > label:first-child,.row > .lbl { min-width:104px; color:#4a475e; font-weight:600; }
+  .row input[type=range] { flex:1; min-width:0; accent-color:var(--primary); }
+  .row select,.row input[type=text].plain { flex:1; min-width:0; padding:9px 11px; color:#454158; background:#f8f8fc; border:1px solid #e3e1ec; border-radius:10px; font-size:12px; }
+  .val { min-width:42px; text-align:right; color:#9692a5; font-variant-numeric:tabular-nums; }
+  .radios { display:flex; gap:14px; flex-wrap:wrap; }.radios label,.check{display:flex;align-items:center;gap:6px;cursor:pointer}.radios input,.check input{accent-color:var(--primary)}
+  .cf { display:inline-flex; align-items:center; gap:7px; }
+  .cf input[type=color] { width:36px; height:32px; padding:2px; cursor:pointer; background:#fff; border:1px solid #dedbe9; border-radius:9px; }
+  .cf input[type=text] { width:90px; padding:7px 8px; color:#49455c; background:#fafafe; border:1px solid #dedbe9; border-radius:9px; outline:none; font-family:ui-monospace,Consolas,monospace; font-size:11px; text-transform:uppercase; }
+  .cf input[type=text]:focus{border-color:var(--primary)}.cf input.bad{border-color:#e34d68}
+  .chips { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:14px; }
+  .chip { padding:8px 13px; cursor:pointer; color:#676279; background:#f4f3f9; border:1px solid #e6e4ee; border-radius:999px; font-size:11px; transition:.18s; }
+  .chip:hover { border-color:#cfc6f9; background:#fff; }.chip.sel{color:#fff;background:linear-gradient(135deg,#7c5cff,#5737dd);border-color:transparent;box-shadow:0 7px 16px rgba(96,64,222,.22)}
+  .panel{display:none}.presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.preset{width:44px;height:28px;padding:0;cursor:pointer;border:3px solid #fff;border-radius:8px;box-shadow:0 0 0 1px #ddd9eb}.preset:hover{box-shadow:0 0 0 2px var(--primary)}
+  .gbar-wrap{position:relative;margin:6px 10px;padding-bottom:32px}.gbar{height:30px;cursor:copy;border:1px solid #d5d2e6;border-radius:9px;touch-action:none}.gstops{position:absolute;left:0;right:0;top:30px;height:30px}.gstop{position:absolute;top:2px;width:20px;height:26px;margin-left:-10px;cursor:grab;touch-action:none}.gstop i{display:block;width:18px;height:18px;margin:4px 1px 0;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #8a8fb0,0 2px 5px rgba(0,0,0,.3)}.gstop.sel i{box-shadow:0 0 0 2px var(--cyan),0 2px 5px rgba(0,0,0,.3)}.gstop:active{cursor:grabbing}.gtip,.note{color:#9995a7;font-size:10.5px;line-height:1.5}.pos-in{width:62px;padding:7px;border:1px solid #dedbe9;border-radius:8px;font-size:12px}
+  .thumb{width:42px;height:42px;display:none;object-fit:cover;border:1px solid #ddd;border-radius:9px}.logo-box{padding:15px;background:#fafafe;border:1px dashed #d7d3e7;border-radius:14px}.logo-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}#logoOpts{display:none;margin-top:10px}
+  button,.file-btn{padding:10px 15px;cursor:pointer;border:0;border-radius:11px;font-size:12px;transition:transform .15s,box-shadow .2s,opacity .2s}.file-btn{display:inline-block;color:#5b45ce;background:#eeeaff}.file-btn:hover{background:#e7e1ff}button:active,.file-btn:active{transform:scale(.97)}button:disabled{cursor:not-allowed;opacity:.38}.btn-primary{color:#fff;background:linear-gradient(135deg,#855dff,#5932dc);box-shadow:0 8px 18px rgba(94,57,218,.25)}.btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 11px 23px rgba(94,57,218,.33)}.btn-secondary{color:#5b45ce;background:#eeeaff}.btn-secondary:hover{background:#e4deff}.btn-small{padding:7px 10px;font-size:11px}.btn-ghost{display:none;padding:8px;color:#d54a64;background:transparent}
+
+  @media(max-width:900px){body{padding:14px}.app{grid-template-columns:1fr;min-height:auto;border-radius:22px}.left{position:relative;min-height:auto;padding:26px}.qr-wrap{width:min(72vw,330px)}.hint{margin-top:10px}.right{height:auto;overflow:visible;padding:32px 26px 44px}.right::after{top:64px;left:26px}.sec-title:first-child{margin-top:54px}}
+  @media(max-width:560px){body{padding:0;background:#fff}.app{border:0;border-radius:0;box-shadow:none}.left{padding:22px 18px 24px}.qr-wrap{width:min(78vw,300px);padding:20px;border-radius:28px}.actions{grid-template-columns:1fr 1fr}.actions .btn-secondary{grid-column:1/-1}.right{padding:28px 18px 42px}.right::before{font-size:23px}.right::after{top:59px;left:18px}.tiles{grid-template-columns:repeat(2,1fr)}.row{flex-wrap:wrap}.row>label:first-child,.row>.lbl{min-width:100%}.sec-title:first-child{margin-top:54px}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ============ KIRI: preview ============ -->
+  <aside class="left">
+    <h1>QR Studio</h1>
+    <div class="pv-tools" id="pvTools">
+      <button type="button" data-bg="pv-checker" class="sel" title="Kotak-kotak (transparan)">Checker</button>
+      <button type="button" data-bg="pv-white" title="Putih">White</button>
+      <button type="button" data-bg="pv-dark" title="Gelap">Dark</button>
+    </div>
+    <div class="qr-wrap pv-checker" id="qrWrap">
+      <span class="placeholder" id="placeholder">QR code akan muncul di sini</span>
+      <img id="qrImg" alt="QR Code">
+    </div>
+    <div id="info"><div id="covLine"></div><div id="conLine"></div></div>
+
+    <div class="actions">
+      <button class="btn-primary" id="downloadPng" disabled>Download PNG</button>
+      <button class="btn-primary" id="downloadSvg" disabled>Download SVG</button>
+      <button class="btn-secondary" id="copyBtn" disabled>Salin</button>
+    </div>
+    <div class="row" style="justify-content:center; margin-top:12px">
+      <span class="lbl" style="min-width:0">Ukuran PNG</span>
+      <select id="pngSize" class="plain" style="flex:0 0 auto; width:110px">
+        <option value="512">512 px</option>
+        <option value="1024" selected>1024 px</option>
+        <option value="2048">2048 px</option>
+        <option value="4096">4096 px</option>
+      </select>
+    </div>
+    <div class="toast" id="toast"></div>
+    <div class="hint">Klik kanan QR → Copy image juga bisa. Background mengikuti pengaturan "Background" di bawah (default transparan).</div>
+  </aside>
+
+  <!-- ============ KANAN: pengaturan ============ -->
+  <main class="right">
+
+    <div class="sec-title">Isi QR</div>
+    <textarea id="inputText" placeholder="Ketik teks, link, atau apa saja di sini...">https://figma.com</textarea>
+
+    <div class="sec-title">Gaya</div>
+    <div class="tiles" id="tiles"></div>
+    <div class="row" id="dotRow" style="display:none; margin-top:14px">
+      <label for="dotSize">Ukuran titik</label>
+      <input type="range" id="dotSize" class="rerender" min="55" max="100" value="85" data-unit="%">
+      <span class="val"></span>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label for="eyeSel">Bentuk mata</label>
+      <select id="eyeSel" class="rerender">
+        <option value="auto">Otomatis (ikut gaya)</option>
+        <option value="square">Kotak</option>
+        <option value="rounded">Kotak bulat</option>
+        <option value="circle">Bulat</option>
+      </select>
+    </div>
+    <div class="row">
+      <label class="check lbl"><input type="checkbox" id="eyeSep" class="rerender"> Warna mata sendiri</label>
+      <span id="eyeField" style="display:none"></span>
+    </div>
+
+    <div class="sec-title">Warna</div>
+    <div class="chips" id="fillChips">
+      <button type="button" class="chip sel" data-type="solid">Solid</button>
+      <button type="button" class="chip" data-type="linear">Linear</button>
+      <button type="button" class="chip" data-type="radial">Radial</button>
+      <button type="button" class="chip" data-type="conic">Angular</button>
+      <button type="button" class="chip" data-type="diamond">Diamond</button>
+      <button type="button" class="chip" data-type="image">Gambar</button>
+    </div>
+
+    <!-- solid -->
+    <div class="panel" id="panelSolid">
+      <div class="row"><span class="lbl">Warna (HEX)</span><span id="solidField"></span></div>
+    </div>
+
+    <!-- gradien -->
+    <div class="panel" id="panelGrad">
+      <div class="presets" id="presets"></div>
+      <div class="gbar-wrap">
+        <div class="gbar" id="gbar"></div>
+        <div class="gstops" id="gstops"></div>
+      </div>
+      <p class="gtip">Klik bar untuk menambah titik warna, geser titik untuk memindah.</p>
+      <div class="row">
+        <span class="lbl">Titik terpilih</span>
+        <span id="stopField"></span>
+        <input type="number" class="pos-in" id="stopPos" min="0" max="100" step="1" title="Posisi (%)"> <span>%</span>
+        <button type="button" class="btn-secondary btn-small" id="stopDel">Hapus</button>
+        <button type="button" class="btn-secondary btn-small" id="stopRev">⇄ Balik</button>
+      </div>
+      <div class="row" data-for="linear conic">
+        <label for="gAngle" id="angleLbl">Sudut</label>
+        <input type="range" id="gAngle" class="rerender" min="0" max="360" value="45" data-unit="°">
+        <span class="val"></span>
+      </div>
+      <div class="row" data-for="radial conic diamond">
+        <label for="gCx">Pusat X</label>
+        <input type="range" id="gCx" class="rerender" min="-50" max="150" value="50" data-unit="%">
+        <span class="val"></span>
+      </div>
+      <div class="row" data-for="radial conic diamond">
+        <label for="gCy">Pusat Y</label>
+        <input type="range" id="gCy" class="rerender" min="-50" max="150" value="50" data-unit="%">
+        <span class="val"></span>
+      </div>
+      <div class="row" data-for="radial">
+        <label for="gRad">Radius</label>
+        <input type="range" id="gRad" class="rerender" min="10" max="200" value="70" data-unit="%">
+        <span class="val"></span>
+      </div>
+      <div class="row" data-for="diamond">
+        <label for="gDia">Ukuran</label>
+        <input type="range" id="gDia" class="rerender" min="10" max="200" value="100" data-unit="%">
+        <span class="val"></span>
+      </div>
+    </div>
+
+    <!-- gambar -->
+    <div class="panel" id="panelImage">
+      <div class="logo-row">
+        <label class="file-btn" for="fillFile">Pilih gambar pengisi</label>
+        <input type="file" id="fillFile" accept="image/*" hidden>
+        <img class="thumb" id="fillThumb" alt="">
+        <button class="btn-ghost" id="fillRemove" type="button">Hapus</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label for="iFit">Penyesuaian</label>
+        <select id="iFit" class="rerender">
+          <option value="cover">Isi penuh (cover)</option>
+          <option value="contain">Muat (contain)</option>
+          <option value="stretch">Rentangkan</option>
+        </select>
+      </div>
+      <div class="row"><label for="iZoom">Zoom</label>
+        <input type="range" id="iZoom" class="rerender" min="50" max="300" value="100" data-unit="%"><span class="val"></span></div>
+      <div class="row"><label for="iOx">Geser X</label>
+        <input type="range" id="iOx" class="rerender" min="-100" max="100" value="0" data-unit="%"><span class="val"></span></div>
+      <div class="row"><label for="iOy">Geser Y</label>
+        <input type="range" id="iOy" class="rerender" min="-100" max="100" value="0" data-unit="%"><span class="val"></span></div>
+      <div class="row"><label for="iDark">Gelapkan</label>
+        <input type="range" id="iDark" class="rerender" min="0" max="80" value="0" data-unit="%"><span class="val"></span></div>
+      <div class="row"><span class="lbl">Warna dasar</span><span id="baseField"></span></div>
+      <div class="note">Gambar hanya terlihat di dalam modul QR (bagian hitamnya), seperti QR dipakai sebagai mask. Bagian gambar yang terang bikin QR susah discan, jadi naikkan "Gelapkan" kalau perlu. Warna dasar dipakai di area yang tidak tertutup gambar.</div>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <label for="fillOp">Opasitas</label>
+      <input type="range" id="fillOp" class="rerender" min="10" max="100" value="100" data-unit="%">
+      <span class="val"></span>
+    </div>
+    <div class="row">
+      <label for="bgSel">Background</label>
+      <select id="bgSel" class="rerender" style="flex:0 0 auto; width:130px">
+        <option value="none">Transparan</option>
+        <option value="color">Warna</option>
+      </select>
+      <span id="bgField" style="display:none"></span>
+    </div>
+
+    <div class="sec-title">Logo / Gambar tengah</div>
+    <div class="logo-box">
+      <div class="logo-row">
+        <label class="file-btn" for="logoFile">Pilih logo (PNG / SVG / JPG)</label>
+        <input type="file" id="logoFile" accept="image/*" hidden>
+        <button class="btn-ghost" id="removeLogo" type="button">Hapus logo</button>
+      </div>
+      <div id="logoOpts">
+        <div class="row" style="margin-top:12px">
+          <span class="lbl">Area kosong</span>
+          <div class="radios">
+            <label><input type="radio" name="maskMode" value="shape" class="rerender" checked> Ikuti bentuk gambar</label>
+            <label><input type="radio" name="maskMode" value="box" class="rerender"> Kotak</label>
+          </div>
+        </div>
+        <div class="row"><label for="logoSize">Ukuran logo</label>
+          <input type="range" id="logoSize" class="rerender" min="10" max="50" value="20" data-unit="%"><span class="val"></span></div>
+        <div class="row"><label for="padSize">Jarak sekitar</label>
+          <input type="range" id="padSize" class="rerender" min="0" max="20" value="7" data-div="10"><span class="val"></span></div>
+      </div>
+      <div class="note">Mode "Ikuti bentuk" membaca bagian transparan gambar, paling pas untuk PNG/SVG tanpa background. Gambar tanpa transparansi (JPG) otomatis jadi kotak.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ===PURE-START=== */
+const MARGIN = 3;       // margin (modul) di sekeliling QR
+const EXPORT = 1024;    // target resolusi dasar
+
+/* ---------- helper path ---------- */
+const f = v => +v.toFixed(3);
+const arc = (r, ex, ey) => r > 0 ? `A${f(r)} ${f(r)} 0 0 1 ${f(ex)} ${f(ey)}` : '';
+const circ = (cx, cy, r) =>
+  `M${f(cx - r)} ${f(cy)}a${f(r)} ${f(r)} 0 1 0 ${f(2 * r)} 0a${f(r)} ${f(r)} 0 1 0 ${f(-2 * r)} 0Z`;
+function rr(x, y, w, h, r) {
+  if (!r) return `M${f(x)} ${f(y)}h${w}v${h}h${-w}Z`;
+  return `M${f(x + r)} ${f(y)}H${f(x + w - r)}A${f(r)} ${f(r)} 0 0 1 ${f(x + w)} ${f(y + r)}` +
+         `V${f(y + h - r)}A${f(r)} ${f(r)} 0 0 1 ${f(x + w - r)} ${f(y + h)}` +
+         `H${f(x + r)}A${f(r)} ${f(r)} 0 0 1 ${f(x)} ${f(y + h - r)}` +
+         `V${f(y + r)}A${f(r)} ${f(r)} 0 0 1 ${f(x + r)} ${f(y)}Z`;
+}
+
+/* ---------- warna ---------- */
+const HEX_RE = /^#?([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+function normHex(s) {
+  const m = HEX_RE.exec(String(s).trim());
+  if (!m) return null;
+  let h = m[1].toLowerCase();
+  if (h.length === 8) h = h.slice(0, 6);                       // alpha diabaikan
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  return '#' + h;
+}
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgb2hex = a => '#' + a.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+function colorAt(stops, pos) {
+  const s = stops.slice().sort((a, b) => a.pos - b.pos);
+  if (pos <= s[0].pos) return s[0].color;
+  if (pos >= s[s.length - 1].pos) return s[s.length - 1].color;
+  for (let i = 0; i < s.length - 1; i++) {
+    const a = s[i], b = s[i + 1];
+    if (pos >= a.pos && pos <= b.pos) {
+      const t = b.pos === a.pos ? 0 : (pos - a.pos) / (b.pos - a.pos);
+      const A = hex2rgb(a.color), B = hex2rgb(b.color);
+      return rgb2hex(A.map((v, k) => v + (B[k] - v) * t));
+    }
+  }
+  return s[s.length - 1].color;
+}
+
+/* ---------- path modul data ---------- */
+function dataPath(g, n, style, ds, o) {
+  const has = (r, c) => r >= 0 && c >= 0 && r < n && c < n && g[r][c];
+  const rad = ds / 2, gap = (1 - ds) / 2;
+  let d = '';
+
+  if (style === 'square') {
+    for (let r = 0; r < n; r++) {
+      let c = 0;
+      while (c < n) {
+        if (has(r, c)) {
+          const s = c;
+          while (has(r, c)) c++;
+          d += `M${o + s} ${o + r}h${c - s}v1h${s - c}z`;
+        } else c++;
+      }
+    }
+  } else if (style === 'rounded' || style === 'fluid') {
+    const R = style === 'fluid' ? 0.5 : 0.35;
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      if (!has(r, c)) continue;
+      const up = has(r - 1, c), dn = has(r + 1, c), lf = has(r, c - 1), rt = has(r, c + 1);
+      const tl = !up && !lf ? R : 0, tr = !up && !rt ? R : 0;
+      const br = !dn && !rt ? R : 0, bl = !dn && !lf ? R : 0;
+      const x = o + c, y = o + r;
+      d += `M${f(x + tl)} ${y}H${f(x + 1 - tr)}${arc(tr, x + 1, y + tr)}` +
+           `V${f(y + 1 - br)}${arc(br, x + 1 - br, y + 1)}` +
+           `H${f(x + bl)}${arc(bl, x, y + 1 - bl)}` +
+           `V${f(y + tl)}${arc(tl, x + tl, y)}Z`;
+      if (style === 'fluid') {
+        for (const [dr, dc] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) {
+          if (!has(r + dr, c + dc) && has(r + dr, c) && has(r, c + dc)) {
+            const vx = o + c + (dc > 0 ? 1 : 0), vy = o + r + (dr > 0 ? 1 : 0);
+            const sw = dr * dc > 0 ? 0 : 1;
+            d += `M${vx} ${vy}L${f(vx + dc * R)} ${vy}A${R} ${R} 0 0 ${sw} ${vx} ${f(vy + dr * R)}Z`;
+          }
+        }
+      }
+    }
+  } else if (style === 'dot') {
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++)
+      if (has(r, c)) d += circ(o + c + 0.5, o + r + 0.5, rad);
+  } else if (style === 'hdots') {
+    for (let r = 0; r < n; r++) {
+      let c = 0;
+      while (c < n) {
+        if (has(r, c)) {
+          const s = c;
+          while (has(r, c)) c++;
+          const x0 = o + s + gap, x1 = o + c - gap, top = o + r + gap;
+          d += `M${f(x0 + rad)} ${f(top)}H${f(x1 - rad)}A${f(rad)} ${f(rad)} 0 0 1 ${f(x1 - rad)} ${f(top + ds)}` +
+               `H${f(x0 + rad)}A${f(rad)} ${f(rad)} 0 0 1 ${f(x0 + rad)} ${f(top)}Z`;
+        } else c++;
+      }
+    }
+  } else if (style === 'vdots') {
+    for (let c = 0; c < n; c++) {
+      let r = 0;
+      while (r < n) {
+        if (has(r, c)) {
+          const s = r;
+          while (has(r, c)) r++;
+          const y0 = o + s + gap, y1 = o + r - gap, left = o + c + gap;
+          d += `M${f(left)} ${f(y0 + rad)}A${f(rad)} ${f(rad)} 0 0 1 ${f(left + ds)} ${f(y0 + rad)}` +
+               `V${f(y1 - rad)}A${f(rad)} ${f(rad)} 0 0 1 ${f(left)} ${f(y1 - rad)}Z`;
+        } else r++;
+      }
+    }
+  }
+  return d;
+}
+
+/* ---------- path "mata" ---------- */
+function eyePath(x, y, type) {
+  if (type === 'circle')
+    return circ(x + 3.5, y + 3.5, 3.5) + circ(x + 3.5, y + 3.5, 2.5) + circ(x + 3.5, y + 3.5, 1.5);
+  const r1 = type === 'rounded' ? 2.2 : 0, r2 = type === 'rounded' ? 1.2 : 0, r3 = type === 'rounded' ? 1 : 0;
+  return rr(x, y, 7, 7, r1) + rr(x + 1, y + 1, 5, 5, r2) + rr(x + 2, y + 2, 3, 3, r3);
+}
+
+/* ---------- isi untuk tipe yang butuh clipPath (angular, diamond, gambar) ---------- */
+function clipContent(p, T, x0, S) {
+  const cx = x0 + S * p.cx / 100, cy = x0 + S * p.cy / 100;
+
+  if (p.type === 'conic') {
+    const N = 240, step = 360 / N, R = T * 2;
+    let s = '';
+    for (let i = 0; i < N; i++) {
+      const a0 = (p.angle + i * step) * Math.PI / 180;
+      const a1 = (p.angle + (i + 1) * step + 0.35) * Math.PI / 180;   // sedikit overlap, cegah garis tipis
+      const col = colorAt(p.stops, (i + 0.5) / N * 100);
+      s += `<path d="M${f(cx)} ${f(cy)}L${f(cx + R * Math.sin(a0))} ${f(cy - R * Math.cos(a0))}` +
+           `L${f(cx + R * Math.sin(a1))} ${f(cy - R * Math.cos(a1))}Z" fill="${col}"/>`;
+    }
+    return s;
+  }
+
+  if (p.type === 'diamond') {
+    const N = 120, rmax = S * p.dia / 100;
+    let s = `<rect width="${T}" height="${T}" fill="${colorAt(p.stops, 100)}"/>`;
+    for (let i = N; i >= 1; i--) {
+      const r = rmax * i / N;
+      s += `<path d="M${f(cx - r)} ${f(cy)}L${f(cx)} ${f(cy - r)}L${f(cx + r)} ${f(cy)}L${f(cx)} ${f(cy + r)}Z" ` +
+           `fill="${colorAt(p.stops, (i - 0.5) / N * 100)}"/>`;
+    }
+    return s;
+  }
+
+  // gambar
+  const im = p.image;
+  let iw, ih;
+  if (im.fit === 'stretch') { iw = S * im.zoom; ih = S * im.zoom; }
+  else {
+    const k = (im.fit === 'cover' ? Math.max : Math.min)(S / im.w, S / im.h) * im.zoom;
+    iw = im.w * k; ih = im.h * k;
+  }
+  const ix = x0 + (S - iw) / 2 + S * im.ox / 100, iy = x0 + (S - ih) / 2 + S * im.oy / 100;
+  return `<rect width="${T}" height="${T}" fill="${p.base}"/>` +
+    `<image x="${f(ix)}" y="${f(iy)}" width="${f(iw)}" height="${f(ih)}" preserveAspectRatio="none" ` +
+    `href="${im.src}" xlink:href="${im.src}"/>` +
+    (im.dark > 0 ? `<rect width="${T}" height="${T}" fill="#000" fill-opacity="${f(im.dark)}"/>` : '');
+}
+
+/* ---------- rakit SVG ---------- */
+function composeSvg(o) {
+  const { n, g, style, ds, paint: p, uid } = o;
+  const T = n + MARGIN * 2;
+  const size = T * Math.max(1, Math.floor(EXPORT / T));
+  const x0 = MARGIN, S = n;
+
+  const d = dataPath(g, n, style, ds, MARGIN);
+  const eyeD = eyePath(MARGIN, MARGIN, o.eye) + eyePath(MARGIN + n - 7, MARGIN, o.eye) + eyePath(MARGIN, MARGIN + n - 7, o.eye);
+  const eyeOwn = !!o.eyeColor;
+  const op = o.opacity;
+
+  const native = p.type === 'solid' || p.type === 'linear' || p.type === 'radial' || (p.type === 'image' && !p.image);
+  let defs = '', body = '';
+
+  if (o.bg) body += `<rect width="${T}" height="${T}" fill="${o.bg}"/>`;
+
+  if (native) {
+    let fill;
+    const stopsXml = () => p.stops.slice().sort((a, b) => a.pos - b.pos)
+      .map(s => `<stop offset="${f(s.pos / 100)}" stop-color="${s.color}"/>`).join('');
+    if (p.type === 'linear') {
+      const th = p.angle * Math.PI / 180, dx = Math.sin(th), dy = -Math.cos(th);
+      const L = S * (Math.abs(dx) + Math.abs(dy)) / 2, cx = x0 + S / 2, cy = x0 + S / 2;
+      defs += `<linearGradient id="g${uid}" gradientUnits="userSpaceOnUse" x1="${f(cx - dx * L)}" y1="${f(cy - dy * L)}" ` +
+              `x2="${f(cx + dx * L)}" y2="${f(cy + dy * L)}">${stopsXml()}</linearGradient>`;
+      fill = `url(#g${uid})`;
+    } else if (p.type === 'radial') {
+      defs += `<radialGradient id="g${uid}" gradientUnits="userSpaceOnUse" cx="${f(x0 + S * p.cx / 100)}" ` +
+              `cy="${f(x0 + S * p.cy / 100)}" r="${f(S * p.radius / 100)}">${stopsXml()}</radialGradient>`;
+      fill = `url(#g${uid})`;
+    } else {
+      fill = p.type === 'solid' ? p.solid : p.base;
+    }
+    const fo = op < 1 ? ` fill-opacity="${f(op)}"` : '';
+    body += `<path d="${d}" fill="${fill}"${fo}/>`;
+    body += `<path d="${eyeD}" fill="${eyeOwn ? o.eyeColor : fill}"${eyeOwn ? '' : fo} fill-rule="evenodd"/>`;
+  } else {
+    defs += `<clipPath id="c${uid}"><path d="${d}"/>` +
+            (eyeOwn ? '' : `<path d="${eyeD}" clip-rule="evenodd"/>`) + `</clipPath>`;
+    body += `<g clip-path="url(#c${uid})"${op < 1 ? ` opacity="${f(op)}"` : ''}>${clipContent(p, T, x0, S)}</g>`;
+    if (eyeOwn) body += `<path d="${eyeD}" fill="${o.eyeColor}" fill-rule="evenodd"/>`;
+  }
+
+  body += o.logoTag || '';
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+    `viewBox="0 0 ${T} ${T}" width="${size}" height="${size}">` +
+    (defs ? `<defs>${defs}</defs>` : '') + body + `</svg>`;
+  return { svg, size };
+}
+/* ===PURE-END=== */
+
+
+/* ================= UI ================= */
+const $ = id => document.getElementById(id);
+const PPM = 10;                       // piksel per modul untuk mask logo
+const UID = Math.random().toString(36).slice(2, 7);
+
+const input = $('inputText'), qrWrap = $('qrWrap'), qrImg = $('qrImg'), placeholder = $('placeholder');
+const downloadPng = $('downloadPng'), downloadSvg = $('downloadSvg'), copyBtn = $('copyBtn'), toast = $('toast');
+
+const STYLES = [
+  { id: 'square',  label: 'Kotak' },
+  { id: 'rounded', label: 'Kotak bulat' },
+  { id: 'dot',     label: 'Titik' },
+  { id: 'hdots',   label: 'Titik nyambung ↔' },
+  { id: 'vdots',   label: 'Titik nyambung ↕' },
+  { id: 'fluid',   label: 'Cair' }
+];
+const PRESETS = [
+  { n: 'Ungu',    s: [[0, '#667eea'], [100, '#764ba2']] },
+  { n: 'Laut',    s: [[0, '#0f2027'], [50, '#203a43'], [100, '#2c5364']] },
+  { n: 'Api',     s: [[0, '#8e0e00'], [55, '#e52d27'], [100, '#f09819']] },
+  { n: 'Hutan',   s: [[0, '#134e5e'], [100, '#2e8b57']] },
+  { n: 'Neon',    s: [[0, '#00a8ff'], [100, '#0033cc']] },
+  { n: 'Permen',  s: [[0, '#ee0979'], [100, '#ff6a00']] },
+  { n: 'Mono',    s: [[0, '#000000'], [100, '#666666']] },
+  { n: 'Pelangi', s: [[0, '#e11d48'], [25, '#f59e0b'], [50, '#16a34a'], [75, '#2563eb'], [100, '#9333ea']] }
+];
+
+const state = {
+  style: 'square',
+  type: 'solid',
+  stops: [{ pos: 0, color: '#667eea' }, { pos: 100, color: '#764ba2' }],
+  sel: 0,
+  logo: null,       // { img, src, w, h }
+  fill: null        // { img, src, w, h, samples }
+};
+let current = null, token = 0, pending = false;
+
+/* ---------- field warna (picker + HEX) ---------- */
+function colorField(host, initial, onChange) {
+  host.classList.add('cf');
+  host.innerHTML = '<input type="color" aria-label="Pilih warna">' +
+    '<input type="text" maxlength="9" spellcheck="false" placeholder="#RRGGBB" aria-label="Kode HEX">';
+  const pick = host.children[0], txt = host.children[1];
+  let val = initial;
+  const apply = (hex, fire) => {
+    val = hex; pick.value = hex; txt.value = hex.toUpperCase(); txt.classList.remove('bad');
+    if (fire) onChange(hex);
+  };
+  pick.addEventListener('input', () => apply(pick.value, true));
+  txt.addEventListener('input', () => {
+    const h = normHex(txt.value);
+    if (h) { val = h; pick.value = h; txt.classList.remove('bad'); onChange(h); }
+    else txt.classList.add('bad');
+  });
+  txt.addEventListener('blur', () => apply(val, false));
+  apply(initial, false);
+  return { set: h => apply(h, false), get: () => val };
+}
+
+function schedule() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => { pending = false; render(); });
+}
+
+const solidF = colorField($('solidField'), '#333333', schedule);
+const baseF  = colorField($('baseField'),  '#333333', schedule);
+const eyeF   = colorField($('eyeField'),   '#000000', schedule);
+const bgF    = colorField($('bgField'),    '#ffffff', schedule);
+const stopF  = colorField($('stopField'),  '#667eea', hex => {
+  state.stops[state.sel].color = hex; refreshBar(); schedule();
+});
+
+/* ---------- editor gradien ---------- */
+const gbar = $('gbar'), gstops = $('gstops');
+const cssGrad = stops => 'linear-gradient(90deg,' +
+  stops.slice().sort((a, b) => a.pos - b.pos).map(s => `${s.color} ${s.pos}%`).join(',') + ')';
+
+function refreshBar() {
+  gbar.style.background = cssGrad(state.stops);
+  [...gstops.children].forEach((el, i) => {
+    el.style.left = state.stops[i].pos + '%';
+    el.firstChild.style.background = state.stops[i].color;
+    el.classList.toggle('sel', i === state.sel);
+  });
+}
+function syncStopControls() {
+  const s = state.stops[state.sel];
+  stopF.set(s.color);
+  $('stopPos').value = Math.round(s.pos);
+  $('stopDel').disabled = state.stops.length <= 2;
+}
+function buildHandles() {
+  gstops.innerHTML = '';
+  state.stops.forEach((s, i) => {
+    const h = document.createElement('div');
+    h.className = 'gstop';
+    h.appendChild(document.createElement('i'));
+    h.addEventListener('pointerdown', e => {
+      e.preventDefault(); e.stopPropagation();
+      state.sel = i; syncStopControls(); refreshBar();
+      h.setPointerCapture(e.pointerId);
+      const move = ev => {
+        const r = gbar.getBoundingClientRect();
+        state.stops[i].pos = Math.round(Math.max(0, Math.min(100, (ev.clientX - r.left) / r.width * 100)));
+        $('stopPos').value = state.stops[i].pos;
+        refreshBar(); schedule();
+      };
+      const up = () => { h.removeEventListener('pointermove', move); h.removeEventListener('pointerup', up); h.removeEventListener('pointercancel', up); };
+      h.addEventListener('pointermove', move);
+      h.addEventListener('pointerup', up);
+      h.addEventListener('pointercancel', up);
+    });
+    gstops.appendChild(h);
+  });
+  refreshBar();
+}
+gbar.addEventListener('pointerdown', e => {
+  const r = gbar.getBoundingClientRect();
+  const pos = Math.round(Math.max(0, Math.min(100, (e.clientX - r.left) / r.width * 100)));
+  state.stops.push({ pos, color: colorAt(state.stops, pos) });
+  state.sel = state.stops.length - 1;
+  buildHandles(); syncStopControls(); schedule();
+});
+$('stopPos').addEventListener('input', e => {
+  const v = Math.max(0, Math.min(100, +e.target.value || 0));
+  state.stops[state.sel].pos = v; refreshBar(); schedule();
+});
+$('stopDel').addEventListener('click', () => {
+  if (state.stops.length <= 2) return;
+  state.stops.splice(state.sel, 1);
+  state.sel = Math.max(0, state.sel - 1);
+  buildHandles(); syncStopControls(); schedule();
+});
+$('stopRev').addEventListener('click', () => {
+  state.stops.forEach(s => s.pos = 100 - s.pos);
+  refreshBar(); syncStopControls(); schedule();
+});
+PRESETS.forEach(p => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'preset'; b.title = p.n;
+  b.style.background = cssGrad(p.s.map(([pos, color]) => ({ pos, color })));
+  b.addEventListener('click', () => {
+    state.stops = p.s.map(([pos, color]) => ({ pos, color }));
+    state.sel = 0; buildHandles(); syncStopControls(); schedule();
+  });
+  $('presets').appendChild(b);
+});
+
+/* ---------- tipe isi ---------- */
+function syncPanels() {
+  const t = state.type;
+  $('panelSolid').style.display = t === 'solid' ? 'block' : 'none';
+  $('panelGrad').style.display = ['linear', 'radial', 'conic', 'diamond'].includes(t) ? 'block' : 'none';
+  $('panelImage').style.display = t === 'image' ? 'block' : 'none';
+  document.querySelectorAll('[data-for]').forEach(el => {
+    el.style.display = el.dataset.for.split(' ').includes(t) ? 'flex' : 'none';
+  });
+  $('angleLbl').textContent = t === 'conic' ? 'Sudut awal' : 'Sudut';
+}
+$('fillChips').addEventListener('click', e => {
+  const b = e.target.closest('.chip');
+  if (!b) return;
+  state.type = b.dataset.type;
+  document.querySelectorAll('#fillChips .chip').forEach(c => c.classList.toggle('sel', c === b));
+  syncPanels(); schedule();
+});
+
+/* ---------- gambar (logo & isi) ---------- */
+function loadImageFile(file, maxDim) {
+  return new Promise((resolve, reject) => {
+    const rd = new FileReader();
+    rd.onerror = reject;
+    rd.onload = () => {
+      const src0 = rd.result, im = new Image();
+      im.onerror = reject;
+      im.onload = () => {
+        const w = im.naturalWidth || 300, h = im.naturalHeight || 300;
+        if (file.type === 'image/svg+xml' || Math.max(w, h) <= maxDim) { resolve({ img: im, src: src0, w, h }); return; }
+        const k = maxDim / Math.max(w, h), cw = Math.round(w * k), ch = Math.round(h * k);
+        const c = document.createElement('canvas');
+        c.width = cw; c.height = ch;
+        c.getContext('2d').drawImage(im, 0, 0, cw, ch);
+        const src = c.toDataURL(file.type === 'image/jpeg' ? 'image/jpeg' : 'image/png', 0.9);
+        const im2 = new Image();
+        im2.onload = () => resolve({ img: im2, src, w: cw, h: ch });
+        im2.onerror = reject;
+        im2.src = src;
+      };
+      im.src = src0;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+function sampleImage(img) {
+  const c = document.createElement('canvas');
+  c.width = c.height = 24;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0, 24, 24);
+  const d = x.getImageData(0, 0, 24, 24).data, out = [];
+  for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 128) out.push([d[i], d[i + 1], d[i + 2]]);
+  return out;
+}
+
+$('fillFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const r = await loadImageFile(file, 1200);
+    r.samples = sampleImage(r.img);
+    state.fill = r;
+    $('fillThumb').src = r.src; $('fillThumb').style.display = 'block';
+    $('fillRemove').style.display = 'inline-block';
+    schedule();
+  } catch (err) { flash('Gambar tidak bisa dibaca.'); }
+  e.target.value = '';
+});
+$('fillRemove').addEventListener('click', () => {
+  state.fill = null;
+  $('fillThumb').style.display = 'none';
+  $('fillRemove').style.display = 'none';
+  schedule();
+});
+
+$('logoFile').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    state.logo = await loadImageFile(file, 800);
+    $('logoOpts').style.display = 'block';
+    $('removeLogo').style.display = 'inline-block';
+    schedule();
+  } catch (err) { flash('Gambar tidak bisa dibaca.'); }
+  e.target.value = '';
+});
+$('removeLogo').addEventListener('click', () => {
+  state.logo = null;
+  $('logoOpts').style.display = 'none';
+  $('removeLogo').style.display = 'none';
+  schedule();
+});
+
+/* ---------- tile gaya ---------- */
+const SAMPLE = ['1101101', '1111011', '0110111', '1011110', '1100101', '0111011', '1010110']
+  .map(s => s.split('').map(ch => ch === '1'));
+STYLES.forEach(s => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'tile' + (s.id === state.style ? ' sel' : '');
+  const d = dataPath(SAMPLE, 7, s.id, 0.85, 0);
+  btn.innerHTML = `<svg viewBox="0 0 7 7"><path d="${d}" fill="#4a5a8a"/></svg><span>${s.label}</span>`;
+  btn.addEventListener('click', () => {
+    state.style = s.id;
+    document.querySelectorAll('#tiles .tile').forEach(t => t.classList.toggle('sel', t === btn));
+    $('dotRow').style.display = ['dot', 'hdots', 'vdots'].includes(s.id) ? 'flex' : 'none';
+    schedule();
+  });
+  $('tiles').appendChild(btn);
+});
+
+/* ---------- baca pengaturan ---------- */
+function getPaint() {
+  const fl = state.fill;
+  return {
+    type: state.type,
+    solid: solidF.get(),
+    base: baseF.get(),
+    stops: state.stops.map(s => ({ pos: s.pos, color: s.color })),
+    angle: +$('gAngle').value, cx: +$('gCx').value, cy: +$('gCy').value,
+    radius: +$('gRad').value, dia: +$('gDia').value,
+    image: fl ? {
+      src: fl.src, w: fl.w, h: fl.h, fit: $('iFit').value,
+      zoom: +$('iZoom').value / 100, ox: +$('iOx').value, oy: +$('iOy').value,
+      dark: +$('iDark').value / 100
+    } : null
+  };
+}
+
+/* ---------- bangun scene (matriks QR + mask logo) ---------- */
+function buildScene(text) {
+  const tmp = document.createElement('div');
+  const qr = new QRCode(tmp, {
+    text: text, width: 10, height: 10,
+    correctLevel: QRCode.CorrectLevel.H   // level H: tahan rusak ±30%
+  });
+  const model = qr._oQRCode;
+  const n = model.getModuleCount();
+  const isFinder = (r, c) => (r < 7 && c < 7) || (r < 7 && c >= n - 7) || (r >= n - 7 && c < 7);
+
+  const g = [];
+  for (let r = 0; r < n; r++) {
+    g[r] = [];
+    for (let c = 0; c < n; c++) g[r][c] = model.isDark(r, c) && !isFinder(r, c);
+  }
+
+  let logoTag = '', clearedPct = 0;
+  const logo = state.logo;
+  if (logo) {
+    const maxSide = n * $('logoSize').value / 100;
+    const ar = logo.w / logo.h;
+    let bw = maxSide, bh = maxSide;
+    if (ar >= 1) bh = maxSide / ar; else bw = maxSide * ar;
+    const bx = (n - bw) / 2, by = (n - bh) / 2;
+
+    const W = n * PPM;
+    const mc = document.createElement('canvas');
+    mc.width = mc.height = W;
+    const ctx = mc.getContext('2d', { willReadFrequently: true });
+    const mode = document.querySelector('input[name=maskMode]:checked').value;
+    if (mode === 'shape') ctx.drawImage(logo.img, bx * PPM, by * PPM, bw * PPM, bh * PPM);
+    else { ctx.fillStyle = '#000'; ctx.fillRect(bx * PPM, by * PPM, bw * PPM, bh * PPM); }
+    const px = ctx.getImageData(0, 0, W, W).data;
+
+    const S = W + 1, sat = new Int32Array(S * S);
+    for (let y = 0; y < W; y++) {
+      let row = 0;
+      for (let x = 0; x < W; x++) {
+        row += px[(y * W + x) * 4 + 3] > 24 ? 1 : 0;
+        sat[(y + 1) * S + x + 1] = sat[y * S + x + 1] + row;
+      }
+    }
+    const sum = (x0, y0, x1, y1) => sat[y1 * S + x1] - sat[y0 * S + x1] - sat[y1 * S + x0] + sat[y0 * S + x0];
+
+    const pad = Math.round($('padSize').value / 10 * PPM);
+    let cnt = 0;
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+      if (isFinder(r, c)) continue;
+      const x0 = Math.max(0, c * PPM - pad), x1 = Math.min(W, (c + 1) * PPM + pad);
+      const y0 = Math.max(0, r * PPM - pad), y1 = Math.min(W, (r + 1) * PPM + pad);
+      if (sum(x0, y0, x1, y1) > 0) { g[r][c] = false; cnt++; }
+    }
+    clearedPct = cnt / (n * n) * 100;
+    logoTag = `<image x="${f(MARGIN + bx)}" y="${f(MARGIN + by)}" width="${f(bw)}" height="${f(bh)}" ` +
+              `preserveAspectRatio="none" href="${logo.src}" xlink:href="${logo.src}"/>`;
+  }
+
+  let eye = $('eyeSel').value;
+  if (eye === 'auto') eye = { square: 'square', rounded: 'rounded', fluid: 'rounded' }[state.style] || 'circle';
+
+  const out = composeSvg({
+    n, g, style: state.style, ds: $('dotSize').value / 100, eye,
+    paint: getPaint(), opacity: $('fillOp').value / 100,
+    eyeColor: $('eyeSep').checked ? eyeF.get() : null,
+    bg: $('bgSel').value === 'color' ? bgF.get() : null,
+    logoTag, uid: UID
+  });
+  out.clearedPct = clearedPct;
+  return out;
+}
+
+/* ---------- estimasi kontras ---------- */
+function relLum(rgb) {
+  const c = rgb.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+}
+function paintSamples(p) {
+  if (p.type === 'solid') return [hex2rgb(p.solid)];
+  if (p.type === 'image') {
+    if (!p.image || !state.fill || !state.fill.samples.length) return [hex2rgb(p.base)];
+    const k = 1 - p.image.dark;
+    return state.fill.samples.map(s => s.map(v => v * k));
+  }
+  const out = [];
+  for (let i = 0; i <= 24; i++) out.push(hex2rgb(colorAt(p.stops, i / 24 * 100)));
+  return out;
+}
+function contrastInfo() {
+  const p = getPaint();
+  const useBg = $('bgSel').value === 'color';
+  const bgRgb = useBg ? hex2rgb(bgF.get()) : [255, 255, 255];
+  const bgL = relLum(bgRgb);
+  const samples = paintSamples(p);
+  const Ls = samples.map(relLum);
+  const ratios = Ls.map(L => (Math.max(L, bgL) + 0.05) / (Math.min(L, bgL) + 0.05)).sort((a, b) => a - b);
+  const worst = ratios[Math.floor(ratios.length * 0.1)];
+  const meanL = Ls.reduce((a, b) => a + b, 0) / Ls.length;
+  const vs = useBg ? 'background' : 'putih';
+  if (meanL > bgL) return { cls: 'bad', text: `Modul lebih terang dari ${vs} (QR terbalik), banyak scanner gagal membacanya` };
+  if (worst >= 4.5) return { cls: 'ok', text: `Kontras bagus (${worst.toFixed(1)}:1 vs ${vs})` };
+  if (worst >= 3)   return { cls: 'mid', text: `Kontras sedang (${worst.toFixed(1)}:1 vs ${vs}), tes scan dulu` };
+  return { cls: 'bad', text: `Kontras rendah (${worst.toFixed(1)}:1 vs ${vs}), berisiko tidak terbaca` };
+}
+
+/* ---------- render ---------- */
+function rasterize(svg, size) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      resolve(canvas);
+    };
+    img.onerror = () => reject(new Error('raster-failed'));
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  });
+}
+
+function syncLabels() {
+  document.querySelectorAll('input[type=range]').forEach(el => {
+    const v = el.nextElementSibling;
+    if (!v || !v.classList.contains('val')) return;
+    const x = el.value / (+el.dataset.div || 1);
+    v.textContent = (Number.isInteger(x) ? x : x.toFixed(1)) + (el.dataset.unit || '');
+  });
+}
+
+function showMessage(msg, isError) {
+  qrImg.style.display = 'none';
+  placeholder.style.display = '';
+  placeholder.className = isError ? 'error' : 'placeholder';
+  placeholder.textContent = msg;
+  downloadPng.disabled = downloadSvg.disabled = copyBtn.disabled = true;
+  $('covLine').textContent = $('conLine').textContent = '';
+  current = null;
+}
+
+async function render() {
+  const my = ++token;
+  syncLabels();
+  const text = input.value;
+  if (!text.trim()) { showMessage('QR code akan muncul di sini', false); return; }
+  try {
+    const scene = buildScene(text);
+    const canvas = await rasterize(scene.svg, scene.size);
+    if (my !== token) return;
+    current = { svg: scene.svg, canvas, size: scene.size };
+    qrImg.src = canvas.toDataURL('image/png');     // <img> PNG → klik kanan Copy image tetap transparan
+    qrImg.style.display = 'block';
+    placeholder.style.display = 'none';
+    downloadPng.disabled = downloadSvg.disabled = copyBtn.disabled = false;
+
+    const cov = $('covLine');
+    if (state.logo) {
+      const pct = scene.clearedPct;
+      cov.className = pct > 25 ? 'bad' : pct > 15 ? 'mid' : 'ok';
+      cov.textContent = `Area kosong untuk logo: ${pct.toFixed(1)}% — ` +
+        (pct > 25 ? 'berisiko, kecilkan logo / kurangi jarak' : pct > 15 ? 'cukup besar, tes scan dulu' : 'aman');
+    } else cov.textContent = '';
+    const ci = contrastInfo();
+    $('conLine').className = ci.cls;
+    $('conLine').textContent = ci.text;
+  } catch (err) {
+    if (my !== token) return;
+    const long = err && /overflow/i.test(err.message || '');
+    showMessage(long ? 'Teks terlalu panjang untuk dijadikan QR code.' : 'Gagal membuat QR. Coba gambar lain.', true);
+  }
+}
+
+function flash(msg) {
+  toast.textContent = msg;
+  clearTimeout(flash.t);
+  flash.t = setTimeout(() => toast.textContent = '', 2500);
+}
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------- event ---------- */
+input.addEventListener('input', schedule);
+document.querySelectorAll('.rerender').forEach(el => {
+  const ev = (el.tagName === 'SELECT' || el.type === 'radio' || el.type === 'checkbox') ? 'change' : 'input';
+  el.addEventListener(ev, () => {
+    if (el.id === 'eyeSep') $('eyeField').style.display = el.checked ? 'inline-flex' : 'none';
+    if (el.id === 'bgSel') $('bgField').style.display = el.value === 'color' ? 'inline-flex' : 'none';
+    schedule();
+  });
+});
+$('pvTools').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b) return;
+  document.querySelectorAll('#pvTools button').forEach(x => x.classList.toggle('sel', x === b));
+  qrWrap.classList.remove('pv-checker', 'pv-white', 'pv-dark');
+  qrWrap.classList.add(b.dataset.bg);
+});
+
+downloadPng.addEventListener('click', async () => {
+  if (!current) return;
+  try {
+    const size = +$('pngSize').value;
+    const cv = size === current.canvas.width ? current.canvas : await rasterize(current.svg, size);
+    cv.toBlob(b => { saveBlob(b, 'qr-code.png'); flash(`PNG ${size}px berhasil diunduh`); }, 'image/png');
+  } catch (e) { flash('Gagal membuat PNG pada ukuran itu. Coba ukuran lebih kecil.'); }
+});
+downloadSvg.addEventListener('click', () => {
+  if (!current) return;
+  saveBlob(new Blob([current.svg], { type: 'image/svg+xml;charset=utf-8' }), 'qr-code.svg');
+  flash('SVG berhasil diunduh');
+});
+copyBtn.addEventListener('click', () => {
+  if (!current) return;
+  current.canvas.toBlob(async blob => {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      flash('Gambar berhasil disalin');
+    } catch (e) { flash('Gagal menyalin. Coba klik kanan QR → Copy image.'); }
+  }, 'image/png');
+});
+
+/* ---------- init ---------- */
+buildHandles();
+syncStopControls();
+syncPanels();
+syncLabels();
+render();
+</script>
+</body>
+</html>
